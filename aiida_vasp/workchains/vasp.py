@@ -770,6 +770,7 @@ class VaspWorkChain(BaseRestartWorkChain):
         if 'settings' in node.inputs:
             settings = node.inputs.settings.get_dict()
             if not settings.get('CHECK_IONIC_CONVERGENCE', True):
+                self.report('This process handler was by-passed due to CHECK_IONIC_CONVERGENCE=False.')
                 return None
 
         misc = node.outputs.misc.get_dict()

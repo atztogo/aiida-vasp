@@ -58,7 +58,7 @@ class OutcarParser(BaseFileParser):
             'name': 'run_stats',
             'prerequisites': [],
         },
-        'run_status': {
+        'outcar-run_status': {
             'inputs': [],
             'name': 'run_status',
             'prerequisites': [],

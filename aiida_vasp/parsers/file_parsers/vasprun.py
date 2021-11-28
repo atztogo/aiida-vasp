@@ -35,7 +35,7 @@ DEFAULT_OPTIONS = {
         'maximum_force',
         'maximum_stress',
         'band_properties',
-        #'run_status',
+        'run_status',
         'version',
     ],
     'energy_type': ['energy_extrapolated'],
@@ -166,11 +166,12 @@ class VasprunParser(BaseFileParser):
             'name': 'band_properties',
             'prerequisites': [],
         },
-        #        'run_status': {
-        #            'inputs': [],
-        #            'name': 'run_status',
-        #            'prerequisites': [],
-        #        },
+        'run_status': {
+            'inputs': [],
+            'name': 'run_status',
+            'prerequisites': [],
+            'alternatives': ['outcar-run_status']
+        },
         'version': {
             'inputs': [],
             'name': 'version',
@@ -753,32 +754,43 @@ class VasprunParser(BaseFileParser):
     def run_status(self):
         """Fetch run_status information"""
         info = {}
-        # First check electronic convergence by comparing executed steps to the
-        # maximum allowed number of steps (NELM).
-        energies = self._xml.get_energies('last', nosc=False)
+        energies = self._xml.get_energies('all', nosc=True)
         parameters = self._xml.get_parameters()
         info['finished'] = not self._xml_truncated
-        # Only set to true for untruncated run to avoid false positives
-        if energies is None:
-            info['electronic_converged'] = False
-        elif energies.get('electronic_steps')[0] < parameters['nelm'] and not self._xml_truncated:
-            info['electronic_converged'] = True
-        else:
-            info['electronic_converged'] = False
 
-        # Then check the ionic convergence by comparing executed steps to the
+        # Check the ionic convergence by comparing executed steps to the
         # maximum allowed number of steps (NSW).
         energies = self._xml.get_energies('all', nosc=True)
-        if energies is None:
-            info['ionic_converged'] = False
-        else:
-            if len(energies.get('electronic_steps')) < parameters['nsw'] and not self._xml_truncated:
+        if 'nsw' in parameters and parameters['nsw'] > 0:
+            if energies is None:
+                info['ionic_converged'] = False
+            elif len(energies.get('electronic_steps')) < parameters['nsw'] and not self._xml_truncated:
                 info['ionic_converged'] = True
             else:
                 info['ionic_converged'] = False
-        # Override if nsw is 0 - no ionic steps are performed
-        if parameters['nsw'] < 1:
+        else:
             info['ionic_converged'] = None
+
+        # Check electronic convergence by comparing executed steps to the
+        # maximum allowed number of steps (NELM).
+        # True for ionic calculation when energy exists even for trancated run.
+        # Otherwise set to true for untruncated run to avoid false positives.
+        if energies is None:
+            info['electronic_converged'] = False
+            info['electronic_converged_status'] = 'energies is None.'
+        elif energies.get('electronic_steps')[-1] < parameters['nelm']:
+            if not self._xml_truncated:
+                info['electronic_converged'] = True
+                info['electronic_converged_status'] = 'XML untruncated.'
+            elif info['ionic_converged'] is not None:
+                info['electronic_converged'] = True
+                info['electronic_converged_status'] = 'XML truncated but ionic steps exist.'
+            else:
+                info['electronic_converged'] = False
+                info['electronic_converged_status'] = 'XML truncated.'
+        else:
+            info['electronic_converged'] = False
+            info['electronic_converged_status'] = 'Reached the end of NELM.'
 
         return info
 

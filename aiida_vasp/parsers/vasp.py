@@ -336,7 +336,8 @@ class VaspParser(BaseParser):
         # comment on wether properties are converged are not.
 
         if run_status['finished'] is False:
-            return self.exit_codes.ERROR_DID_NOT_FINISH
+            if self._check_ionic_convergence:
+                return self.exit_codes.ERROR_DID_NOT_FINISH
 
         if run_status['electronic_converged'] is False:
             return self.exit_codes.ERROR_ELECTRONIC_NOT_CONVERGED
